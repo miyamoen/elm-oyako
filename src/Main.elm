@@ -1,26 +1,45 @@
 module Main exposing (..)
 
-import Dict
 import Html exposing (..)
-import Html.Attributes exposing (..)
-import Keyboard
 import Papa
-import Son
 
 
 type Msg
     = PapaMsgWrap Papa.Msg
+    | ActivateOne Papa.SonId
+    | NoOp
 
 
 type alias Model =
-    { activeSonId : Son.Id
-    , papaModel : Papa.Model
+    { papaModel : Papa.Model
+    , papaContext : Papa.Context Msg
     }
 
 
 init : ( Model, Cmd Msg )
 init =
-    { activeSonId = 1, papaModel = Papa.initModel } ! []
+    { papaModel = Papa.initModel
+    , papaContext = papaContext 1
+    } ! []
+
+
+papaContext : Papa.SonId -> Papa.Context Msg
+papaContext id =
+    case id of
+        1 ->
+            [ { msg = ActivateOne 1, isActive = True }
+            , { msg = ActivateOne 2, isActive = False }
+            ]
+
+        2 ->
+            [ { msg = ActivateOne 1, isActive = False }
+            , { msg = ActivateOne 2, isActive = True }
+            ]
+
+        _ ->
+            [ { msg = ActivateOne 1, isActive = False }
+            , { msg = ActivateOne 2, isActive = False }
+            ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -29,29 +48,26 @@ update msg model =
         PapaMsgWrap papaMsg ->
             let
                 ( papaModel, _ ) =
-                    Papa.update model.activeSonId papaMsg model.papaModel
+                    Papa.update papaMsg model.papaModel
             in
-                case papaMsg of
-                    Papa.KeyDown code ->
-                        { model | papaModel = papaModel } ! []
+                { model | papaModel = papaModel } ! []
 
-                    Papa.SonMsgWrap sonMsg ->
-                        case sonMsg of
-                            Son.ChangeActiveSon id ->
-                                { model | activeSonId = id } ! []
+        ActivateOne sonId ->
+            { model | papaContext = papaContext sonId } ! []
 
-                            _ ->
-                                model ! []
+        _ ->
+            model ! []
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    Sub.map PapaMsgWrap <| Keyboard.downs Papa.KeyDown
+subscriptions { papaModel, papaContext } =
+    Papa.subscriptions papaContext papaModel
+        |> Sub.map PapaMsgWrap
 
 
 view : Model -> Html Msg
 view model =
-    div [] [ Html.map PapaMsgWrap <| Papa.view model.activeSonId model.papaModel ]
+    div [] [ Papa.view model.papaContext model.papaModel ]
 
 
 main : Program Never Model Msg

@@ -1,15 +1,14 @@
-module Son exposing (..)
+module Son exposing (init, initModel, Msg, view, update, Model, Id, isHappy, dummySon, getId, Context, subscriptions)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Keyboard
-import Task
 
 
 type Msg
-    = ChangeActiveSon Id
-    | KeyDown Keyboard.KeyCode
+    = KeyDown Keyboard.KeyCode
+    | NoOp
 
 
 type alias Id =
@@ -26,51 +25,54 @@ type Feeling
     | Crying
 
 
-type alias Model =
-    { id : Id
-    , name : Name
-    , feeling : Feeling
-    }
+type Model =
+    Model
+        { id : Id
+        , name : Name
+        , feeling : Feeling
+        }
 
 
-initModel : Id -> Name -> Feeling -> Model
-initModel id name feeling =
-    { id = id
-    , name = name
-    , feeling = feeling
-    }
+initModel : Id -> Name -> Model
+initModel id name =
+    Model
+        { id = id
+        , name = name
+        , feeling = Happy
+        }
+
+
+init : ( Model, Cmd Msg)
+init =
+    dummySon ! []
 
 
 dummySon : Model
 dummySon =
-    initModel 0 "" Happy
+    initModel 0 "dummy"
 
 
-message : msg -> Cmd msg
-message x =
-    Task.perform identity (Task.succeed x)
+isHappy : Model -> Bool
+isHappy (Model { feeling }) =
+    feeling == Happy
+
+
+getId : Model -> Id
+getId (Model { id }) =
+    id
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update msg (Model model) =
     case msg of
-        KeyDown code ->
-            let
-                newFeeling =
-                    case code of
-                        38 ->
-                            backFeeling model.feeling
+        KeyDown 38 ->
+            Model { model | feeling = backFeeling model.feeling } ! []
 
-                        40 ->
-                            forwardFeeling model.feeling
-
-                        _ ->
-                            model.feeling
-            in
-                { model | feeling = newFeeling } ! []
+        KeyDown 40 ->
+            Model { model | feeling = forwardFeeling model.feeling } ! []
 
         _ ->
-            model ! []
+            Model model ! []
 
 
 backFeeling : Feeling -> Feeling
@@ -99,6 +101,20 @@ forwardFeeling feeling =
             Happy
 
 
+type alias Context msg =
+    { msg : msg
+    , isActive : Bool
+    }
+
+
+subscriptions : Context msg -> Model -> Sub Msg
+subscriptions { isActive } (Model model) =
+    if isActive then
+        Keyboard.downs <| KeyDown
+    else
+        Sub.none
+
+
 sonContainer : List ( String, String )
 sonContainer =
     [ ( "margin-left", "20px" )
@@ -125,8 +141,8 @@ sonNameColor =
     [ ( "color", "red" ) ]
 
 
-view : Id -> Model -> Html Msg
-view id model =
+view : Context msg -> Model -> Html msg
+view {msg, isActive} (Model model) =
     let
         sonImgSrc =
             case model.feeling of
@@ -140,14 +156,14 @@ view id model =
                     "../img/son-crying.png"
 
         sonNameColorStyle =
-            if id == model.id then
+            if isActive then
                 sonNameColor
             else
                 []
     in
         div
             [ style sonContainer
-            , onClick <| ChangeActiveSon model.id
+            , onClick msg
             ]
             [ img
                 [ style sonImg, src sonImgSrc ]
@@ -156,3 +172,13 @@ view id model =
                 [ style <| sonName ++ sonNameColorStyle ]
                 [ text model.name ]
             ]
+
+
+main : Program Never Model Msg
+main =
+    Html.program
+        { init = init
+        , update = update
+        , subscriptions = subscriptions { msg = NoOp, isActive = True }
+        , view = view { msg = NoOp, isActive = True }
+        }

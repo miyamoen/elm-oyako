@@ -1,72 +1,77 @@
-module Papa exposing (..)
+module Papa exposing (Model, init, initModel, Msg, isGood, update, Context, subscriptions, view, SonId)
 
-import Dict exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Keyboard
 import Son
+import ChildUpdate exposing (updateMany)
 
 
 type Msg
-    = SonMsgWrap Son.Msg
-    | KeyDown Keyboard.KeyCode
+    = SonMsgWrap SonId Son.Msg
+    | NoOp
 
 
-type alias Model =
-    { isGood : Bool, sonDict : Dict Son.Id Son.Model }
+type alias SonId =
+    Son.Id
 
 
-isGood : Dict Son.Id Son.Model -> Bool
-isGood sons =
+type Model =
+    Model { sons : List Son.Model }
+
+
+isGood : Model -> Bool
+isGood (Model { sons }) =
     sons
-        |> Dict.toList
-        |> List.map (\( id, son ) -> son)
-        |> List.all (\son -> son.feeling == Son.Happy)
+        |> List.all Son.isHappy
 
 
+init : (Model, Cmd Msg)
+init =
+    initModel ! []
+
+
+initModel : Model
 initModel =
-    let
-        sons =
-            [ Son.initModel 1 "いちろう" Son.Angry
-            , Son.initModel 2 "じろう" Son.Crying
+    Model
+        { sons =
+            [ Son.initModel 1 "いちろう"
+            , Son.initModel 2 "じろう"
             ]
-
-        sonDict =
-            sons
-                |> List.map (\son -> ( son.id, son ))
-                |> Dict.fromList
-    in
-        { isGood = isGood sonDict
-        , sonDict = sonDict
         }
 
 
-targetSon : Son.Id -> Dict Son.Id Son.Model -> Son.Model
-targetSon id sonDict =
-    sonDict
-        |> Dict.get id
-        |> Maybe.withDefault Son.dummySon
+setSons : Model -> List Son.Model -> Model
+setSons (Model model) sons =
+    Model { model | sons = sons }
 
 
-update : Son.Id -> Msg -> Model -> ( Model, Cmd Msg )
-update id msg model =
+getSons : Model -> List Son.Model
+getSons (Model { sons }) =
+    sons
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
     case msg of
-        KeyDown code ->
-            let
-                ( sonModel, _ ) =
-                    targetSon id model.sonDict
-                        |> Son.update (Son.KeyDown code)
-
-                newSonDict =
-                    Dict.insert id sonModel model.sonDict
-
-                newIsGood =
-                    isGood newSonDict
-            in
-                { model | isGood = newIsGood, sonDict = newSonDict } ! []
-
-        SonMsgWrap sonMsg ->
+        SonMsgWrap sonId sonMsg ->
+            updateMany Son.update Son.getId getSons setSons SonMsgWrap sonId sonMsg model
+        
+        _ ->
             model ! []
+
+
+-- Son.Context msg : { msg : msg, isActive : Bool }
+type alias Context msg =
+    List (Son.Context msg)
+
+
+subscriptions : Context msg -> Model -> Sub Msg
+subscriptions sonContexts (Model { sons }) =
+    List.map2 (\context son ->
+        Son.subscriptions context son
+            |> Sub.map (SonMsgWrap <| Son.getId son)
+        ) sonContexts sons
+        |> Sub.batch
 
 
 papaImg : List ( String, String )
@@ -78,17 +83,15 @@ papaImg =
     ]
 
 
-view : Son.Id -> Model -> Html Msg
-view id model =
+view : Context msg -> Model -> Html msg
+view sonContexts ((Model { sons }) as m) =
     let
+        sonViews : List (Html msg)
         sonViews =
-            model.sonDict
-                |> Dict.toList
-                |> List.map (\( id, son ) -> son)
-                |> List.map (\son -> Html.map SonMsgWrap <| Son.view id son)
+            List.map2 Son.view sonContexts sons
 
         papaImgSrc =
-            if model.isGood then
+            if isGood m then
                 "../img/papa-good.png"
             else
                 "../img/papa-bad.png"
@@ -101,3 +104,13 @@ view id model =
                 []
             , div [] sonViews
             ]
+
+
+main : Program Never Model Msg
+main =
+    Html.program
+        { init = init
+        , update = update
+        , subscriptions = subscriptions [{ msg = NoOp, isActive = True }, { msg = NoOp, isActive = False }]
+        , view = view [{ msg = NoOp, isActive = True }, { msg = NoOp, isActive = False }]
+        }
