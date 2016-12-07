@@ -12,26 +12,26 @@ type Msg
 
 type alias Model =
     { papaModel : Papa.Model
-    , papaContext : Papa.Context Msg
+    , selectedId : Maybe Papa.SonId
     }
 
 
 init : ( Model, Cmd Msg )
 init =
     { papaModel = Papa.initModel
-    , papaContext = papaContext 1
+    , selectedId = Just 1
     } ! []
 
 
-papaContext : Papa.SonId -> Papa.Context Msg
-papaContext id =
-    case id of
-        1 ->
+papaContext : Maybe Papa.SonId -> Papa.Context Msg
+papaContext maybeId =
+    case maybeId of
+        Just 1 ->
             [ { msg = ActivateOne 1, isActive = True }
             , { msg = ActivateOne 2, isActive = False }
             ]
 
-        2 ->
+        Just 2 ->
             [ { msg = ActivateOne 1, isActive = False }
             , { msg = ActivateOne 2, isActive = True }
             ]
@@ -53,21 +53,21 @@ update msg model =
                 { model | papaModel = papaModel } ! []
 
         ActivateOne sonId ->
-            { model | papaContext = papaContext sonId } ! []
+            { model | selectedId = Just sonId } ! []
 
         _ ->
             model ! []
 
 
 subscriptions : Model -> Sub Msg
-subscriptions { papaModel, papaContext } =
-    Papa.subscriptions papaContext papaModel
+subscriptions { papaModel, selectedId } =
+    Papa.subscriptions (papaContext selectedId) papaModel
         |> Sub.map PapaMsgWrap
 
 
 view : Model -> Html Msg
 view model =
-    div [] [ Papa.view model.papaContext model.papaModel ]
+    div [] [ Papa.view (papaContext model.selectedId) model.papaModel ]
 
 
 main : Program Never Model Msg
