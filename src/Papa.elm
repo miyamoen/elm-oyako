@@ -60,12 +60,12 @@ update msg model =
             model ! []
 
 
--- Son.Context msg : { msg : msg, isActive : Bool }
-type alias Context msg =
-    List (Son.Context msg)
+-- Son.Context : { isActive : Bool }
+type alias Context =
+    List (Son.Context)
 
 
-subscriptions : Context msg -> Model -> Sub Msg
+subscriptions : Context -> Model -> Sub Msg
 subscriptions sonContexts (Model { sons }) =
     List.map2 (\context son ->
         Son.subscriptions context son
@@ -83,12 +83,15 @@ papaImg =
     ]
 
 
-view : Context msg -> Model -> Html msg
+view : Context -> Model -> Html SonId
 view sonContexts ((Model { sons }) as m) =
     let
-        sonViews : List (Html msg)
+        sonViews : List (Html SonId)
         sonViews =
-            List.map2 Son.view sonContexts sons
+            List.map2 (\context son ->
+                Son.view context son
+                    |> Html.map (always <| Son.getId son)
+                ) sonContexts sons
 
         papaImgSrc =
             if isGood m then
@@ -111,6 +114,6 @@ main =
     Html.program
         { init = init
         , update = update
-        , subscriptions = subscriptions [{ msg = NoOp, isActive = True }, { msg = NoOp, isActive = False }]
-        , view = view [{ msg = NoOp, isActive = True }, { msg = NoOp, isActive = False }]
+        , subscriptions = subscriptions [{ isActive = True }, { isActive = False }]
+        , view = view [{ isActive = True }, { isActive = False }] >> Html.map (always NoOp)
         }

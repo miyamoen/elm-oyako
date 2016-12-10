@@ -23,22 +23,22 @@ init =
     } ! []
 
 
-papaContext : Maybe Papa.SonId -> Papa.Context Msg
+papaContext : Maybe Papa.SonId -> Papa.Context
 papaContext maybeId =
     case maybeId of
         Just 1 ->
-            [ { msg = ActivateOne 1, isActive = True }
-            , { msg = ActivateOne 2, isActive = False }
+            [ { isActive = True }
+            , { isActive = False }
             ]
 
         Just 2 ->
-            [ { msg = ActivateOne 1, isActive = False }
-            , { msg = ActivateOne 2, isActive = True }
+            [ { isActive = False }
+            , { isActive = True }
             ]
 
         _ ->
-            [ { msg = ActivateOne 1, isActive = False }
-            , { msg = ActivateOne 2, isActive = False }
+            [ { isActive = False }
+            , { isActive = False }
             ]
 
 
@@ -67,7 +67,7 @@ subscriptions { papaModel, selectedId } =
 
 view : Model -> Html Msg
 view model =
-    div [] [ Papa.view (papaContext model.selectedId) model.papaModel ]
+    div [] [ Html.map ActivateOne <| Papa.view (papaContext model.selectedId) model.papaModel ]
 
 
 main : Program Never Model Msg

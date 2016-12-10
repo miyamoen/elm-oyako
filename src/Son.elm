@@ -101,13 +101,12 @@ forwardFeeling feeling =
             Happy
 
 
-type alias Context msg =
-    { msg : msg
-    , isActive : Bool
+type alias Context =
+    { isActive : Bool
     }
 
 
-subscriptions : Context msg -> Model -> Sub Msg
+subscriptions : Context -> Model -> Sub Msg
 subscriptions { isActive } (Model model) =
     if isActive then
         Keyboard.downs <| KeyDown
@@ -141,8 +140,8 @@ sonNameColor =
     [ ( "color", "red" ) ]
 
 
-view : Context msg -> Model -> Html msg
-view {msg, isActive} (Model model) =
+view : Context -> Model -> Html ()
+view {isActive} (Model model) =
     let
         sonImgSrc =
             case model.feeling of
@@ -163,7 +162,7 @@ view {msg, isActive} (Model model) =
     in
         div
             [ style sonContainer
-            , onClick msg
+            , onClick ()
             ]
             [ img
                 [ style sonImg, src sonImgSrc ]
@@ -179,6 +178,6 @@ main =
     Html.program
         { init = init
         , update = update
-        , subscriptions = subscriptions { msg = NoOp, isActive = True }
-        , view = view { msg = NoOp, isActive = True }
+        , subscriptions = subscriptions { isActive = True }
+        , view = view { isActive = True } >> Html.map (\_ -> NoOp)
         }
